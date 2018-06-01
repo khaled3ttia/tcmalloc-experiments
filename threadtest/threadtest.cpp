@@ -100,6 +100,7 @@ void worker ()
     
     for (i = 0; i < (nobjects / nthreads); i ++) {
       delete[] a[i];
+      pageUtilization[page_number] -= objSize/4096.0;
 #if 1
       for (volatile int d = 0; d < work; d++) {
 	volatile int f = 1;
