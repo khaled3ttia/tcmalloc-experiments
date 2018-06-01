@@ -51,6 +51,7 @@ int work = 0;		// Default number of loop iterations.
 int objSize = 1;
 
 std::map<int,float> pageUtilization;
+std::map<int,float> maxUtilization;
 
 class Foo {
 public:
@@ -69,20 +70,28 @@ void worker ()
   int i, j;
   Foo ** a;
   a = new Foo * [nobjects / nthreads];
-
+  int page_number;
   for (j = 0; j < niterations; j++) {
-
+    		
     for (i = 0; i < (nobjects / nthreads); i ++) {
       a[i] = new Foo[objSize];
       
       //get corresponding page number by shifting right the address by 12 bits
-      int page_number =  reinterpret_cast<std::uintptr_t>(a[i]) >> 12;
+      page_number =  reinterpret_cast<std::uintptr_t>(a[i]) >> 12;
       //Check if the page number is currently an existing key in the page utilization map, if so add new allocated space to the coressponding value
       if (pageUtilization.find(page_number) != pageUtilization.end()) {
 	pageUtilization[page_number] += objSize/4096.0;
+        if (maxUtilization.find(page_number) != maxUtilization.end()) {
+		if (pageUtilization[page_number] > maxUtilization[page_number]){
+			maxUtilization[page_number] = pageUtilization[page_number];
+		}
+	}else {
+		maxUtilization[page_number] = pageUtilization[page_number];
+	}
         cout << "value to be stored at address: " << a[i] << " and page number " << page_number << "  is : " << pageUtilization[page_number] << endl;
       }else {
 	pageUtilization[page_number] = objSize/4096.0;
+	maxUtilization[page_number] = pageUtilization[page_number];
         cout << "value to be stored at page number " << page_number << "  is : " << objSize/4096.0 << endl;
       }
 //      printf("allocated space of %d and address %p and page number is %d\n",objSize, static_cast<void*>(&a[i]), reinterpret_cast<std::uintptr_t>(&a[i]) >> 12);
@@ -100,6 +109,9 @@ void worker ()
     
     for (i = 0; i < (nobjects / nthreads); i ++) {
       delete[] a[i];
+      //cout << "current value of page number: " << page_number << endl;
+      //cout << "Deallocating object at address : " << a[i] << endl;
+      page_number =  reinterpret_cast<std::uintptr_t>(a[i]) >> 12;
       pageUtilization[page_number] -= objSize/4096.0;
 #if 1
       for (volatile int d = 0; d < work; d++) {
@@ -163,8 +175,8 @@ int main (int argc, char * argv[])
   
   //print final page utilization map
   printf("Page Number		Max Utilization\n");
-  std::map<int,float>::iterator it = pageUtilization.begin();
-  while (it != pageUtilization.end()) {
+  std::map<int,float>::iterator it = maxUtilization.begin();
+  while (it != maxUtilization.end()) {
 	std::cout<<it->first<<"			" << it->second<<std::endl;
 	it++;
   }
