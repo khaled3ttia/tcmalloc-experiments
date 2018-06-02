@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#define k (4*1024)
+#define k (55)
 #define PAGE_SIZE (4*1024)
 
 int main(int argc, char **argv){
